@@ -15,10 +15,50 @@ selector-pseudo-class-no-unknown, keyframes-name-pattern,
   --totalheight: calc(var(--eventheight) * var(--maxeventlines));
   --displayEndTime: none;
   --displayWeatherTemp: none;
+ 
 
   font-size: var(--fontsize);
   color: var(--defaultcolor);
   line-height: calc(var(--eventheight));
+}
+.module.MMM-CalendarExt3 {
+  --button-size: 50px;
+}
+/* Magic Mirror Google Calendar Event Adder Styles */
+.module.MMM-CalendarExt3 button {
+  cursor: pointer;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;  
+  /* background-color: white; setting the background color of button to white */
+}
+
+.module.MMM-CalendarExt3 .home-button {
+  /* Positioning the button in the top right of the calendar */
+  position: absolute;
+  top: calc(var(--button-size) - 17px);    
+  right: calc(var(--button-size) + 5px + 10px);
+  font-size: 32px; 
+  
+  /* Styling the button as a circular button */
+  width: var(--button_size);
+  height: var(--button_size);
+  border-radius: 50%;
+  background-color: white; 
+
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  /* Centering the icon in the button */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+   
+  /* Adding a bit of box-shadow for a nice effect */
+  box-shadow: -2px 5px 8px rgba(0, 0, 0, 0.3);
 }
 
 .CX3 * {
@@ -311,9 +351,9 @@ selector-pseudo-class-no-unknown, keyframes-name-pattern,
   align-self: center;
 }
 
-.CX3 .event.singleday .headline.useSymbol .symbol {
-  color: var(--calendarColor);
-}
+/*.CX3 .event.singleday .headline.useSymbol .symbol {
+  color: var(--oppositeColor);
+}*/
 
 .CX3 .event.fullday .headline .time {
   display: none;

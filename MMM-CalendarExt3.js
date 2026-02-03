@@ -1,10 +1,99 @@
 /* Global Log, Module, config */
+logCE = (...args) => { /* do nothing */ }
 
 const popoverSupported = (typeof HTMLElement !== 'undefined') ? HTMLElement.prototype.hasOwnProperty('popover') : false
 if (!popoverSupported) console.info(`This browser doesn't support popover yet. Update your system.`)
 const animationSupported = (typeof window !== 'undefined' && window?.mmVersion) ? +(window.mmVersion.split('.').join('')) >= 2250 : false
+
+
+// Check if a character is a simple emoji
+String.prototype.isSimpleEmoji = function() {
+  const codePoint = this.codePointAt(0);
+  return (
+    (codePoint >= 0x1F300 && codePoint <= 0x1F3FA) || // Miscellaneous Symbols and Pictographs
+    (codePoint >= 0x1F400 && codePoint <= 0x1F6F9) || // Emoticons
+    (codePoint >= 0x1F700 && codePoint <= 0x1F773) || // Alchemical Symbols
+    (codePoint >= 0x1F780 && codePoint <= 0x1F7D8) || // Geometric Shapes Extended
+    (codePoint >= 0x1F800 && codePoint <= 0x1F80B) || // Supplemental Arrows-C
+    (codePoint >= 0x1F900 && codePoint <= 0x1F9FF) || // Supplemental Symbols and Pictographs
+    (codePoint >= 0x2600 && codePoint <= 0x26FF) ||   // Miscellaneous Symbols
+    (codePoint >= 0x2700 && codePoint <= 0x27BF) ||   // Dingbats
+    (codePoint >= 0x1F680 && codePoint <= 0x1F6FF) || // Transport and Map Symbols
+    (codePoint >= 0x1F910 && codePoint <= 0x1F9C0) || // Supplemental Symbols and Pictographs
+    (codePoint >= 0x1F100 && codePoint <= 0x1F1FF) || // Enclosed Alphanumeric Supplement
+    (codePoint >= 0x1F200 && codePoint <= 0x1F2FF) || // Enclosed Ideographic Supplement
+    (codePoint >= 0x2B00 && codePoint <= 0x2BFF) ||   // Miscellaneous Symbols and Arrows
+    (codePoint >= 0x27F0 && codePoint <= 0x27FF) ||   // Supplemental Arrows-A
+    (codePoint >= 0x2900 && codePoint <= 0x297F) ||   // Supplemental Arrows-B
+    (codePoint >= 0x1FA70 && codePoint <= 0x1FAFF) || // Symbols and Pictographs Extended-A
+    (codePoint >= 0x1F900 && codePoint <= 0x1F9FF) || // Symbols and Pictographs Extended-B
+    (codePoint >= 0xFE00 && codePoint <= 0xFE0F) ||   // Emoticons (Emoji Variation Selector)
+    (codePoint >= 0xD800 && codePoint <= 0xDFFF)
+  );
+};
+
+// Check if a character is combined into an emoji
+String.prototype.isCombinedIntoEmoji = function() {
+  return this.length > 1 && this.split('').some(char => char.isSimpleEmoji());
+};
+
+// Check if a character is an emoji
+String.prototype.isEmoji = function() {
+  return this.isSimpleEmoji() || this.isCombinedIntoEmoji();
+};
+
+// Check if a string contains a single emoji
+String.prototype.isSingleEmoji = function() {
+  return this.length === 1 && this.isEmoji();
+};
+
+// Check if a string contains any emoji
+String.prototype.containsEmoji = function() {
+  return this.split('').some(char => char.isEmoji());
+};
+
+// Check if a string contains only emojis
+String.prototype.containsOnlyEmoji = function() {
+  return this.length > 0 && !this.split('').some(char => !char.isEmoji());
+};
+
+// Extract emojis from a string and return as a new string
+String.prototype.emojiString = function() {
+  return this.split('').filter(char => char.isEmoji()).join('');
+};
+
+// Function to extract all emojis from a string
+String.prototype.extractEmojis = function() {
+  let emojis = '';
+
+  for (let i = 0; i < this.length; i++) {
+      // Extract substrings starting from the current index
+      const substring = this[i];
+
+      // Check if the substring represents a valid emoji
+      if (substring.isEmoji()) {
+          // Add the emoji to the array
+          emojis += substring;
+      }
+      else { break }
+  }
+
+  return emojis;
+}
+
+// Extract emojis from a string and return as an array of characters
+String.prototype.emojis = function() {
+  return this.split('').filter(char => char.isEmoji());
+};
+
+// Extract emoji scalars from a string and return as an array of UnicodeScalars
+String.prototype.emojiScalars = function() {
+  return this.split('').filter(char => char.isEmoji()).flatMap(char => [...char]);
+};
+
 Module.register('MMM-CalendarExt3', {
   defaults: {
+    debug: false,    
     mode: 'week', // or 'month', 'day'
     weekIndex: -1, // Which week from this week starts in a view. Ignored on mode 'month'
     dayIndex: -1,
@@ -34,7 +123,7 @@ Module.register('MMM-CalendarExt3', {
     eventFilter: (ev) => { return true },
     eventSorter: null,
     eventTransformer: (ev) => { return ev },
-    refreshInterval: 1000 * 60 * 10, // too frequent refresh. 10 minutes is enough.
+    refreshInterval: 1000 * 60 * 5, // too frequent refresh. 10 minutes is enough.
     waitFetch: 1000 * 5,
     glanceTime: 1000 * 60, // deprecated, use refreshInterval instead.
     animationSpeed: 2000,
@@ -43,6 +132,7 @@ Module.register('MMM-CalendarExt3', {
     useWeather: true,
     weatherLocationName: null,
     //notification: 'CALENDAR_EVENTS', /* reserved */
+    updateNotification: 'UPDATE_CAL',
     manipulateDateCell: (cellDom, events) => { },
     weatherNotification: 'WEATHER_UPDATED',
     weatherPayload: (payload) => { return payload },
@@ -59,6 +149,11 @@ Module.register('MMM-CalendarExt3', {
     popoverDateOptions: {
       dateStyle: 'full',
     },
+    customEvents: [
+			// Array of {keyword: "", symbol: "", color: "", eventClass: ""} where Keyword is a regexp and symbol/color/eventClass are to be applied for matches
+		],
+    coloredEvent: true,
+		coloredSymbol: true,    
     displayCW: true,
     animateIn: 'fadeIn',
     animateOut: 'fadeOut',
@@ -70,6 +165,9 @@ Module.register('MMM-CalendarExt3', {
     skipDuplicated: true,
     monthIndex: 0,
     referenceDate: null,
+    showLess: true,
+    shortenIndex: 2,
+    futureMaxEventLines: 2, 
   },
 
   defaulNotifications: {
@@ -84,19 +182,19 @@ Module.register('MMM-CalendarExt3', {
     return css
   },
 
-  getMoment: function (options) {
+  getMoment: function (options, indexOffset) {
     let moment = (options.referenceDate) ? new Date(options.referenceDate) : new Date()
     //let moment = (this.tempMoment) ? new Date(this.tempMoment.valueOf()) : new Date()
     switch (options.mode) {
       case 'day':
-        moment = new Date(moment.getFullYear(), moment.getMonth(), moment.getDate() + options.dayIndex)
+        moment = new Date(moment.getFullYear(), moment.getMonth(), moment.getDate() +  options.dayIndex)
         break
       case 'month':
-        moment = new Date(moment.getFullYear(), moment.getMonth() + options.monthIndex , 1)
+        moment = new Date(moment.getFullYear(), moment.getMonth() + (options.monthIndex-indexOffset), 1)
         break
       case 'week':
       default:
-        moment = new Date(moment.getFullYear(), moment.getMonth(), moment.getDate() + (7 * options.weekIndex))
+        moment = new Date(moment.getFullYear(), moment.getMonth(), moment.getDate() + (7 * (options.weekIndex-indexOffset)))
     }
     return moment
   },
@@ -133,6 +231,7 @@ Module.register('MMM-CalendarExt3', {
   },
 
   start: function() {
+    if (this.config.debug) logCE = (...args) => { console.log("[CALEXT]", ...args) }
     this.activeConfig = this.regularizeConfig({ ...this.config })
     this.originalConfig = { ...this.activeConfig }
 
@@ -141,7 +240,7 @@ Module.register('MMM-CalendarExt3', {
     this.forecast = []
     this.eventPool = new Map()
     this.popoverTimer = null
-
+    
     this._ready = false
 
     let _moduleLoaded = new Promise((resolve, reject) => {
@@ -166,9 +265,47 @@ Module.register('MMM-CalendarExt3', {
         this.updateAnimate()
       }, this.activeConfig.waitFetch)
     })
+
+  /* append popover with notification to send event details*/
     if (popoverSupported) {
-      this.preparePopover()
+        document.body.addEventListener('click', (ev) => {
+            let eDom = ev.target.closest('.event[data-popoverble=true]');
+            if (eDom) {
+                // Extract event details
+                let eventDetails = {
+                    id: eDom.dataset.id,
+                    title: eDom.dataset.title,
+                    startDate: eDom.dataset.startDate,
+                    endDate: eDom.dataset.endDate,
+                    location: eDom.dataset.location,
+                    description: eDom.dataset.description,
+                    calendarName: eDom.dataset.calendarName,
+                    allDay: eDom.dataset.fullDayEvent 
+                };
+                
+                // Send the notification with event details
+                this.sendNotification('EDIT_CALENDAR_EVENT', eventDetails);
+                Log.info("eventdetails:", eventDetails)
+                // Commenting out the next line to disable event popover activation
+                //return this.activatePopover(eDom);
+            }
+            return;
+        });
+      this.preparePopover();
     }
+  },
+
+  prepareHomeButton: function() {
+    var moduleElement = document.getElementsByClassName("module MMM-CalendarExt3 MMM-CalendarExt3");
+    // Create the "Home event" button
+    let homeButton = document.createElement("button");
+    homeButton.className = "home-button";
+    homeButton.innerHTML = '<i class="fas fa-calendar-day"></i>'; 
+    homeButton.addEventListener("click", () => {
+      this.activeConfig = this.regularizeConfig({ ...this.originalConfig })
+      this.updateAnimate()
+    });
+    moduleElement[0].appendChild(homeButton);
   },
 
   preparePopover: function () {
@@ -240,7 +377,8 @@ Module.register('MMM-CalendarExt3', {
       title.innerHTML = e.title
       list.appendChild(item)
     })
-
+	  //leave this active to review day
+    //edit button is overlayed on the left (on the date number), day popover can be selected on the right side
     this.activatePopover(popover)
   },
 
@@ -284,7 +422,8 @@ Module.register('MMM-CalendarExt3', {
       prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex} ${cur.source}">${cur.value}</span>`
       return prev
     }, '')
-    this.activatePopover(popover)
+    //disable event popover as we want to use event handler
+    //this.activatePopover(popover)
   },
 
   activatePopover: function (popover) {
@@ -296,13 +435,21 @@ Module.register('MMM-CalendarExt3', {
   },
 
   notificationReceived: function (notification, payload, sender) {
+    logCE("notificationReceived:", notification)
     const replyCurrentConfig = ({ callback }) => {
       if (typeof callback === 'function') {
         callback({ ...this.activeConfig })
       }
     }
-
+    //force a reanimation
+    if (notification === this.config.updateNotification) {
+      //reset the animation timer as we are updating right now
+      this.resetAnimationTimer(false);
+      this.updateAnimate();
+    }
+    //handles eventPool reset, will display on next updateAnimate
     if (notification === this.notifications.eventNotification) {
+      Log.info("eventNotification Payload:", payload);
       let convertedPayload = this.notifications.eventPayload(payload)
       this.eventPool.set(sender.identifier, JSON.parse(JSON.stringify(convertedPayload)))
     }
@@ -363,6 +510,27 @@ Module.register('MMM-CalendarExt3', {
     }
   },
 
+  socketNotificationReceived: function(notification, payload) {
+    if (notification === "EVENT_ADD_SUCCESS") {
+    }
+  },
+
+  resetAnimationTimer: function (timerBlocked = false) {
+    logCE("resetAnimationTimer");
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer)
+      this.refreshTimer = null
+    }
+    this.refreshTimer = setTimeout(() => {
+      // Check if the timer is not blocked before executing the callback
+      if (!timerBlocked) {
+        clearTimeout(this.refreshTimer)
+        this.refreshTimer = null
+        this.updateAnimate()
+      }
+    }, this.activeConfig.refreshInterval)
+  },
+
   getDom: function () {
     let dom = document.createElement('div')
     dom.innerHTML = ""
@@ -373,25 +541,105 @@ Module.register('MMM-CalendarExt3', {
       return dom
     }
     dom = this.draw(dom, this.activeConfig)
-
-    if (this.refreshTimer) {
-      clearTimeout(this.refreshTimer)
-      this.refreshTimer = null
+    this.resetAnimationTimer(false)
+    if (!this.homeButtonPrepared) {
+      this.prepareHomeButton();
+      this.homeButtonPrepared = true; // Set flag to true after calling prepareHomeButton()
     }
-    this.refreshTimer = setTimeout(() => {
-      clearTimeout(this.refreshTimer)
-      this.refreshTimer = null
-      this.updateAnimate()
-    }, this.activeConfig.refreshInterval)
     return dom
-
   },
-
 
   updated: function (dom, options) {
     if (!dom) return
     dom.querySelectorAll('.title')?.forEach((e) => {
       const parent = e.closest('.event')
+      const symbol = parent.querySelector('.symbol')
+      var transformedTitle = e.innerHTML;
+
+      // Check if the innerHTML content is not empty and the first character is an emoji
+      if (transformedTitle.length > 0) {
+        const hasEmoji = transformedTitle.containsEmoji(); // Assuming you have defined the isEmoji method as shown in the previous code
+        if (hasEmoji) {
+          // Remove the first character from transformedTitle
+          myEmoji=transformedTitle.extractEmojis()
+          transformedTitle = transformedTitle.substring(myEmoji.length);
+          keyword = '^' + myEmoji
+          const newEvent = {
+              keyword: '^' + myEmoji,
+              emoji: myEmoji,
+              transform: {
+                  search: myEmoji,
+                  replace: ''
+              }
+          };
+          found = false
+          // Loop through customEvents array to check if emoji already exists
+          for (let i = 0; i < this.config.customEvents.length; i++) {
+              if (this.config.customEvents[i].keyword === keyword) {
+                  this.config.customEvents[i] = newEvent;
+                  found = true;
+                  break;
+              }
+          }
+
+          // If emoji doesn't exist, add new event
+          if (!found) {
+              this.config.customEvents.push(newEvent);
+          }          
+        }
+      }
+
+      // Color events if custom color or eventClass are specified, transform title if required
+      if (this.config.customEvents.length > 0) {
+        for (let ev in this.config.customEvents) {
+          let needle = new RegExp(this.config.customEvents[ev].keyword, "gi");
+          //matched keyword
+          if (needle.test(e.innerHTML)) {
+            //transform title
+            if (typeof this.config.customEvents[ev].transform === "object") {
+              transformedTitle = this.titleTransform(transformedTitle, this.config.customEvents[ev].transform);
+            }
+
+            //color event
+            if (typeof this.config.customEvents[ev].color !== "undefined" && this.config.customEvents[ev].color !== "") {
+              // Respect parameter ColoredSymbolOnly also for custom events
+              if (this.config.coloredEvent) {
+                //parent is the event overall container
+                parent.style.backgroundColor = this.config.customEvents[ev].color;
+                let magic = this.library.prepareMagic()
+                //event title should be colored by the --oppositeColor variable in CCS
+                magic.style.color = parent.style.backgroundColor
+                let oppositeColor = this.library.getContrastYIQ(window.getComputedStyle(magic).getPropertyValue('color'))                
+                parent.style.setProperty('--oppositeColor', oppositeColor)
+              }
+            }
+            //color symbol
+            if (typeof this.config.customEvents[ev].symbolcolor !== "undefined" && this.config.customEvents[ev].symbolcolor !== "") {
+              //assign color to symbol (may be blocked by useSymbol)
+              if (this.config.useSymbol && this.config.coloredSymbol) {
+                symbol.style.color = this.config.customEvents[ev].symbolcolor;
+              }
+            }
+            //overwrite symbol class
+            if (typeof this.config.customEvents[ev].symbol !== "undefined" && this.config.customEvents[ev].symbol !== "") {
+              symbol.innerHTML = "<span class='" + this.config.customEvents[ev].symbol + "'></span>";
+            }
+            //overwrite symbol class
+            if (typeof this.config.customEvents[ev].emoji !== "undefined" && this.config.customEvents[ev].emoji !== "") {
+              symbol.innerHTML = "<span class=''>" + this.config.customEvents[ev].emoji + "</span>";
+            }            
+            //assign class (to inherit css)
+            if (typeof this.config.customEvents[ev].eventClass !== "undefined" && this.config.customEvents[ev].eventClass !== "") {
+              //attach class to parent
+              parent.className += ` ${this.config.customEvents[ev].eventClass}`;
+            }
+          }
+        }
+      }   
+      //update event text/html
+      e.innerHTML = transformedTitle;   
+
+      //apply marquee
       const {offsetWidth, scrollWidth} = e
       if (options.useMarquee && parent?.dataset?.noMarquee !== 'true' && offsetWidth < scrollWidth) {
         const m = document.createElement('span')
@@ -404,9 +652,39 @@ Module.register('MMM-CalendarExt3', {
         m.style.setProperty('--marqueeOffset', offsetWidth + 'px')
         m.style.setProperty('--marqueeScroll', scrollWidth + 'px')
         m.style.setProperty('--marqueeLength', length + 's')
-      }
+      }      
     })
   },
+
+	titleTransform (title, titleReplace) {
+		let transformedTitle = title;
+		 for (let tr in titleReplace) {
+			let transform = titleReplace[tr];
+		//for (let transform of titleReplace) {
+			if (typeof transform === "object") {
+				if (typeof transform.search !== "undefined" && transform.search !== "" && typeof transform.replace !== "undefined") {
+					let regParts = transform.search.match(/^\/(.+)\/([gim]*)$/);
+					let needle = new RegExp(transform.search, "g");
+					if (regParts) {
+						// the parsed pattern is a regexp with flags.
+						needle = new RegExp(regParts[1], regParts[2]);
+					}
+
+					let replacement = transform.replace;
+					if (typeof transform.yearmatchgroup !== "undefined" && transform.yearmatchgroup !== "") {
+						const yearmatch = [...title.matchAll(needle)];
+						if (yearmatch[0].length >= transform.yearmatchgroup + 1 && yearmatch[0][transform.yearmatchgroup] * 1 >= 1900) {
+							let calcage = new Date().getFullYear() - yearmatch[0][transform.yearmatchgroup] * 1;
+							let searchstr = `$${transform.yearmatchgroup}`;
+							replacement = replacement.replace(searchstr, calcage);
+						}
+					}
+					transformedTitle = transformedTitle.replace(needle, replacement);
+				}
+			}
+		}
+		return transformedTitle;
+	},
 
   draw: async function (dom, options) {
     if (!this.library?.loaded) return dom
@@ -423,7 +701,7 @@ Module.register('MMM-CalendarExt3', {
     dom.style.setProperty('--displayEndTime', (options.displayEndTime) ? 'inherit' : 'none')
     dom.style.setProperty('--displayWeatherTemp', (options.displayWeatherTemp) ? 'inline-block' : 'none')
 
-    const makeCellDom = (d, seq) => {
+  const makeCellDom = (d, seq, eventsOfTheDay) => {
       let tm = new Date(d.valueOf())
       let cell = document.createElement('div')
       cell.classList.add('cell')
@@ -443,14 +721,47 @@ Module.register('MMM-CalendarExt3', {
       let h = document.createElement('div')
       h.classList.add('cellHeader')
 
-      let cwDom = document.createElement('div')
-      cwDom.innerHTML = getWeekNo(tm, options)
-      cwDom.classList.add('cw')
-      if (tm.getDay() === startDayOfWeek) {
-        cwDom.classList.add('cwFirst')
+      let dateDom = document.createElement('div')
+      dateDom.classList.add('cellDate')
+      let dParts = new Intl.DateTimeFormat(this.locale, this.config.cellDateOptions).formatToParts(tm)
+      let dateHTML = dParts.reduce((prev, cur, curIndex) => {
+        prev = prev + `<span class="dateParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
+        return prev
+      }, '')
+      dateDom.innerHTML = dateHTML
+      h.appendChild(dateDom)
+      
+      let workIconDom = document.createElement('div');
+      // Attach click event listener
+      workIconDom.addEventListener('click', (event) => {
+          let clickedElement = event.target;
+      
+          let eventDetails = {
+              id: clickedElement.dataset.id,
+              title: clickedElement.dataset.title,
+              startDate: clickedElement.dataset.startDate,
+              endDate: clickedElement.dataset.endDate,
+              location: clickedElement.dataset.location,
+              description: clickedElement.dataset.description,
+              calendarName: clickedElement.dataset.calendarName,
+              allDay: clickedElement.dataset.fullDayEvent 
+          };
+      
+          // Send the notification with event details
+          this.sendNotification('EDIT_CALENDAR_EVENT', eventDetails);
+          console.log("event details: " + clickedElement.dataset.id + eventDetails);
+      });
+	    h.appendChild(workIconDom);			
+      
+      if (this.config.displayCW) {
+        let cwDom = document.createElement('div')
+        cwDom.innerHTML = getWeekNo(tm, options)
+        cwDom.classList.add('cw')
+        if (tm.getDay() === startDayOfWeek) {
+          cwDom.classList.add('cwFirst')
+        }
+        h.appendChild(cwDom)
       }
-
-      h.appendChild(cwDom)
 
       let forecasted = this.forecast.find((e) => {
         return (tm.toLocaleDateString('en-CA') === e.dateId)
@@ -472,16 +783,18 @@ Module.register('MMM-CalendarExt3', {
         weatherDom.appendChild(minTemp)
         h.appendChild(weatherDom)
       }
-      let dateDom = document.createElement('div')
-      dateDom.classList.add('cellDate')
-      let dParts = new Intl.DateTimeFormat(options.locale, options.cellDateOptions).formatToParts(tm)
-      let dateHTML = dParts.reduce((prev, cur, curIndex) => {
-        prev = prev + `<span class="dateParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
-        return prev
-      }, '')
-      dateDom.innerHTML = dateHTML
 
-      h.appendChild(dateDom)
+      // Create button to add event 
+      let btn = document.createElement('button');
+      btn.className = 'eventButton';
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        let payload = { date: tm };
+        this.sendNotification('BUTTON_CLICKED', payload);
+      });
+
+      // Add the button to the cell header
+      h.appendChild(btn);
 
       let b = document.createElement('div')
       b.classList.add('cellBody')
@@ -538,11 +851,42 @@ Module.register('MMM-CalendarExt3', {
 
     const makeWeekGridDom = (dom, options, events, range) => {
       let wm = new Date(range.boc.valueOf())
+      let newYearRollover = 0      
       do {
         let wDom = document.createElement('div')
         wDom.classList.add('week')
-        wDom.dataset.weekNo = getWeekNo(wm, options)
+        let currentWeek = getWeekNo(wm,options)
 
+        //first iteration
+        if (this.thisWeek === undefined) {
+          //original this week index is always the same offset
+          this.thisWeek = currentWeek - this.originalConfig.weekIndex;
+          //assign the rollover based on this week and the shortenIndex offeset
+          (this.thisWeek > (52 - options.shortenIndex)) ? newYearRollover = 52 : newYearRollover = 0
+        }
+
+        let weekMax = options.maxEventLines
+
+        //show less for weeks outside of this week + shorten index
+        //this week moves with calendar swipe
+        if (options.showLess) {
+          //use temp so weekNo is not affected
+          let tempWeekNumber = currentWeek
+          //handle the rollover dec-jan for week numbers
+          if ((tempWeekNumber - this.originalConfig.weekIndex) - (this.thisWeek) < 0) {
+            tempWeekNumber = currentWeek + newYearRollover;
+          }
+          if ((tempWeekNumber - this.thisWeek) > options.shortenIndex ){
+            weekMax = options.futureMaxEventLines
+            wDom.style.setProperty('--maxeventlines', weekMax)
+          }
+          if ((tempWeekNumber - this.thisWeek) < 0 ){
+            weekMax = options.futureMaxEventLines
+            wDom.style.setProperty('--maxeventlines', weekMax)
+          }        
+        }
+
+        wDom.dataset.weekNo = currentWeek        
         let ccDom = document.createElement('div')
         ccDom.classList.add('cellContainer', 'weekGrid')
 
@@ -571,7 +915,7 @@ Module.register('MMM-CalendarExt3', {
           if (event?.skip) continue
 
           let eDom = renderEventAgenda(event, options, moment)
-
+          Log.debug("renderEventAgenda edom:", eDom);
           let startLine = 0
           if (event.startDate >= boundary.at(0)) {
             startLine = boundary.findIndex((b, idx, bounds) => {
@@ -593,8 +937,10 @@ Module.register('MMM-CalendarExt3', {
           eDom.style.gridColumnStart = startLine + 1
           eDom.style.gridColumnEnd = endLine + 1
 
-          if (event?.noMarquee) {
+          if (event?.noMarquee || event?.isPassed) {
             eDom.dataset.noMarquee = true
+          } else {
+            eDom.dataset.noMarquee = false
           }
 
           if (event?.skip) {
@@ -629,7 +975,7 @@ Module.register('MMM-CalendarExt3', {
           if (options.showMore) {
             const skipped = thatDayEvents.filter(ev => ev.skip).length
             const noskip = thatDayEvents.length - skipped
-            const noskipButOverflowed = (noskip > options.maxEventLines) ? noskip - options.maxEventLines : 0
+            const noskipButOverflowed = (noskip > this.newMax) ? noskip - weekMax : 0
             const hidden = skipped + noskipButOverflowed
             if (hidden) {
               dateCell.classList.add('hasMore')
@@ -652,8 +998,10 @@ Module.register('MMM-CalendarExt3', {
         dom.appendChild(wDom)
         wm = new Date(wm.getFullYear(), wm.getMonth(), wm.getDate() + 7)
       } while(wm.valueOf() <= eoc.valueOf())
+      //reset thisWeek value so that first iteration fires again when the calendar is swiped
+      this.thisWeek = undefined
     }
-    let moment = this.getMoment(options)
+    let moment = this.getMoment(options, 0)
     let { boc, eoc } = rangeCalendar(moment, options)
     const targetEvents = prepareEvents({
       targetEvents: regularizeEvents({
@@ -671,13 +1019,18 @@ Module.register('MMM-CalendarExt3', {
 
   getHeader: function () {
     if (this.activeConfig.mode === 'month') {
-      let moment = this.getMoment(this.activeConfig)
-      return new Intl.DateTimeFormat(this.activeConfig.locale, this.activeConfig.headerTitleOptions).format(new Date(moment.valueOf()))
+      let moment = this.getMoment(this.activeConfig, this.originalConfig.monthIndex)
+      return new Intl.DateTimeFormat(this.activeConfig.locale, this.activeConfig.headerTitleOptions).format(new Date(moment.valueOf()))  + "&nbsp;&nbsp;&nbsp" + moment.getFullYear()
+    }
+    if (this.activeConfig.mode === 'week') {
+      let moment = this.getMoment(this.activeConfig, this.originalConfig.weekIndex) 
+      return new Intl.DateTimeFormat(this.activeConfig.locale, this.activeConfig.headerTitleOptions).format(new Date(moment.valueOf()))  + "&nbsp;&nbsp;&nbsp;" + moment.getFullYear()
     }
     return this.data.header
   },
 
   updateAnimate: function () {
+    logCE("updateAnimate");    
     this.updateDom(
       (!animationSupported)
         ? this.config.animationSpeed
